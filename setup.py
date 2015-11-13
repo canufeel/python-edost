@@ -14,4 +14,8 @@ setup(
 	description='Python bindings for edost.ru',
 	long_description=__doc__,
 	packages=['edost'],
+	install_requires=[
+        'six',
+        'lxml'
+    ]
 )

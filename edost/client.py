@@ -1,7 +1,7 @@
-from urllib import urlencode
+import six
+from six.moves.urllib import request as urllib2
+from six.moves.urllib.parse import urlencode
 import lxml.objectify
-import urllib2
-
 
 class EdostClient(object):
 	def __init__(self, client_id, password):
@@ -15,7 +15,11 @@ class EdostClient(object):
 			'p': self.password,
 		}
 		data.update(kwargs)
-		xml = urllib2.urlopen('http://www.edost.ru/edost_calc_kln.php', urlencode(data)).read()
+		if six.PY2:
+			encoded_data = urlencode(data)
+		else:
+			encoded_data = urlencode(data).encode('cp1251')
+		xml = urllib2.urlopen('http://www.edost.ru/edost_calc_kln.php', encoded_data).read()
 		doc = lxml.objectify.fromstring(xml)
 		return doc
 
@@ -30,9 +34,9 @@ class EdostClient(object):
 			for t in list(doc.tarif):
 				options.append({
 					'id': int(t.id),
-					'company': unicode(t.company),
-					'name': t.name and unicode(t.name) or None,
-					'delivery_time': unicode(t.day),
+					'company': six.u(t.company),
+					'name': t.name and six.u(t.name) or None,
+					'delivery_time': six.u(t.day),
 					'price': float(t.price),
 				})
 			return options
