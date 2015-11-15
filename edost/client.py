@@ -34,9 +34,9 @@ class EdostClient(object):
 			for t in list(doc.tarif):
 				options.append({
 					'id': int(t.id),
-					'company': six.u(t.company),
-					'name': t.name and six.u(t.name) or None,
-					'delivery_time': six.u(t.day),
+					'company': six.u(t.company.text),
+					'name': t.name.text and six.u(t.name.text) or None,
+					'delivery_time': six.u(t.day.text),
 					'price': float(t.price),
 				})
 			return options
