@@ -15,7 +15,8 @@ setup(
 	long_description=__doc__,
 	packages=['edost'],
 	install_requires=[
-        'six',
-        'lxml'
-    ]
+		'six',
+		'lxml',
+		'bs4'
+	]
 )

@@ -1,7 +1,7 @@
 import six
 from six.moves.urllib import request as urllib2
 from six.moves.urllib.parse import urlencode
-import lxml
+from lxml import objectify, etree
 
 STAT = {
 	1:'успех',
@@ -16,7 +16,6 @@ STAT = {
 	11:'не указан вес',
 	12:'не заданы данные магазина (пароль или идентификатор)',
 }
-
 
 class EdostXMLParseError(Exception):
 	pass
@@ -40,8 +39,8 @@ class EdostClient(object):
 		xml = urllib2.urlopen('http://www.edost.ru/edost_calc_kln.php', encoded_data).read()
 		self._response = xml
 		try:
-			doc = lxml.objectify.fromstring(xml)
-		except lxml.etree.XMLSyntaxError:
+			doc = objectify.fromstring(xml)
+		except etree.XMLSyntaxError:
 			raise EdostXMLParseError('There was a problem parsing the reply from Edost server. The response was {0!s}'.format(xml))
 
 		self._parsed_response = doc
@@ -54,17 +53,20 @@ class EdostClient(object):
 		"""
 		doc = self.make_request(**kwargs)
 		result = {}
-		if hasattr(doc, 'tarif'):
-			tarif = []
+		tarif = []
+		try:
 			for t in list(doc.tarif):
-				options.append({
+				tarif.append({
 					'id': int(t.id),
 					'company': six.u(t.company.text),
 					'name': t.name.text and six.u(t.name.text) or None,
 					'delivery_time': six.u(t.day.text),
 					'price': float(t.price),
 				})
-			office = []
+		except AttributeError:
+			self._delivery_only = tarif
+		office = []
+		try:
 			for o in list(doc.office):
 				office.append({
 					'id': int(o.id),
@@ -75,7 +77,58 @@ class EdostClient(object):
 					'schedule': six.u(o.schedule.text),
 					'gps': six.u(o.gps.text)
 					})
-			result.update({'tarif':tarif,'office':office})
+		except AttributeError:
+			self._pick_up_only = office
 		stat = STAT[doc.stat]
+		result.update({'tarif':tarif,'office':office})
 		result.update({'stat':stat})
+		self._parsed_response = result
 		return result
+
+	@property
+	def parsed_response(self):
+		assert hasattr(self,'_parsed_response'), 'Call get_tariffs first.'
+		return self._parsed_response
+	
+	@property
+	def pick_up_only(self):
+		assert hasattr(self,'_parsed_response'), 'Call get_tariffs first.'
+		if hasattr(self,'_pick_up_only'):
+			return self._pick_up_only
+		else:
+			result_list = []
+			for office in self._parsed_response.get('office'):
+				for tarif in office.get('to_tarif'):
+					found = False
+					for item in result_list:
+						if item.get('id') == tarif:
+							item.get('addresses').append(office)
+							found = True
+					if not found:
+						for tarif_details in self._parsed_response.get('tarif'):
+							if tarif_details.get('id') == tarif:
+								new_instance = tarif_details.copy()
+								new_instance['addresses'] = [office]
+								result_list.append(new_instance)
+			self._pick_up_only = result_list
+			return result_list
+
+	@property
+	def delivery_only(self):
+		assert hasattr(self,'_parsed_response'), 'Call get_tariffs first.'
+		if hasattr(self,'_delivery_only'):
+			return self._delivery_only
+		else:
+			to_remove = []
+			delivery_only = self._parsed_response.get('tarif').copy()
+			for tarif in delivery_only:
+				for office in self._parsed_response.get('office'):
+					for office_tarif in office.get('to_tarif'):
+						if office_tarif == tarif.get('id'):
+							if not delivery_only.index(tarif) in to_remove:
+								to_remove.append(delivery_only.index(tarif))
+			to_remove.reverse()
+			for remove in to_remove:
+				delivery_only.pop(remove)
+			self._delivery_only = delivery_only
+			return delivery_only
