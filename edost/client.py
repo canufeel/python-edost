@@ -20,7 +20,9 @@ class EdostClient(object):
 		else:
 			encoded_data = urlencode(data).encode('cp1251')
 		xml = urllib2.urlopen('http://www.edost.ru/edost_calc_kln.php', encoded_data).read()
+		self._response = xml
 		doc = lxml.objectify.fromstring(xml)
+		self._parsed_response = doc
 		return doc
 
 	def get_tariffs(self, **kwargs):
