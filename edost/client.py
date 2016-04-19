@@ -1,7 +1,10 @@
 import six
 from six.moves.urllib import request as urllib2
 from six.moves.urllib.parse import urlencode
-import lxml.objectify
+import lxml
+
+class EdostXMLParseError(Exception):
+	pass
 
 class EdostClient(object):
 	def __init__(self, client_id, password):
@@ -21,7 +24,11 @@ class EdostClient(object):
 			encoded_data = urlencode(data).encode('cp1251')
 		xml = urllib2.urlopen('http://www.edost.ru/edost_calc_kln.php', encoded_data).read()
 		self._response = xml
-		doc = lxml.objectify.fromstring(xml)
+		try:
+			doc = lxml.objectify.fromstring(xml)
+		except lxml.etree.XMLSyntaxError:
+			raise EdostXMLParseError('There was a problem parsing the reply from Edost server. The response was {0!s}'.format(xml))
+
 		self._parsed_response = doc
 		return doc
 
@@ -42,4 +49,4 @@ class EdostClient(object):
 					'price': float(t.price),
 				})
 			return options
-		return None
+		return []
