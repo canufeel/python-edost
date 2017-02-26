@@ -68,9 +68,13 @@ class EdostClient(object):
 		office = []
 		try:
 			for o in list(doc.office):
+				if hasattr(o.to_tarif, 'text') and isinstance(o.to_tarif.text, str):
+					to_tarif = [int(tarif) for tarif in o.to_tarif.text.split(',')]
+				else:
+					to_tarif = [int(tarif) for tarif in o.to_tarif]
 				office.append({
 					'id': int(o.id),
-					'to_tarif': [int(tarif) for tarif in o.to_tarif],
+					'to_tarif': to_tarif,
 					'name': o.name.text and six.u(o.name.text) or None,
 					'address': six.u(o.address.text),
 					'tel': six.u(o.tel.text),
